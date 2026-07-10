@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Expense &amp; Budget Visualizer</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+
+  <body>
+    <header>
+      <h1>Expense &amp; Budget Visualizer</h1>
+      <button id="theme-toggle" aria-label="Switch to dark mode">☀ Light</button>
+    </header>
+
+    <main>
+      <section id="summary-panel" aria-label="Summary Panel">
+        <h2 class="summary-panel__heading">Summary</h2>
+        <dl class="summary-panel__stats">
+          <div class="summary-stat">
+            <dt class="summary-stat__label">Income</dt>
+            <dd class="summary-stat__value summary-stat__value--income" id="summary-income">$0.00</dd>
+          </div>
+          <div class="summary-stat">
+            <dt class="summary-stat__label">Expenses</dt>
+            <dd class="summary-stat__value summary-stat__value--expenses" id="summary-expenses">$0.00</dd>
+          </div>
+          <div class="summary-stat">
+            <dt class="summary-stat__label">Balance</dt>
+            <dd class="summary-stat__value balance--positive" id="summary-balance">+$0.00</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section id="chart-section" aria-label="Spending Chart">
+        <h2 class="chart-section__heading">Spending by Category</h2>
+        <p id="chart-placeholder" class="chart-placeholder">No expense transactions yet. Add an expense to see the chart.</p>
+        <canvas id="spending-chart" aria-label="Spending by category bar chart" role="img"></canvas>
+        <div id="chart-legend" class="chart-legend" aria-label="Chart legend"></div>
+      </section>
+
+      <section id="budget-section" aria-label="Budget Limits">
+        <!-- Budget Section: per-category budget limits and spending indicators -->
+      </section>
+
+      <section id="transaction-form" aria-label="Add Transaction">
+        <h2>Add Transaction</h2>
+        <form id="add-transaction-form" novalidate>
+
+          <div class="form-field">
+            <label for="tx-type">Type</label>
+            <select id="tx-type" name="type">
+              <option value="">— Select type —</option>
+              <option value="income">Income</option>
+              <option value="expense">Expense</option>
+            </select>
+            <span class="field-error" id="tx-type-error" aria-live="polite"></span>
+          </div>
+
+          <div class="form-field">
+            <label for="tx-amount">Amount</label>
+            <input type="number" id="tx-amount" name="amount" min="0" step="0.01" placeholder="0.00" />
+            <span class="field-error" id="tx-amount-error" aria-live="polite"></span>
+          </div>
+
+          <div class="form-field">
+            <label for="tx-description">Description</label>
+            <input type="text" id="tx-description" name="description" maxlength="100" placeholder="e.g. Grocery shopping" />
+            <span class="field-error" id="tx-description-error" aria-live="polite"></span>
+          </div>
+
+          <div class="form-field">
+            <label for="tx-category">Category</label>
+            <select id="tx-category" name="category" class="category-select">
+              <!-- Options populated by populateCategorySelects() -->
+            </select>
+            <span class="field-error" id="tx-category-error" aria-live="polite"></span>
+          </div>
+
+          <div class="form-field">
+            <label for="tx-date">Date</label>
+            <input type="date" id="tx-date" name="date" />
+            <span class="field-error" id="tx-date-error" aria-live="polite"></span>
+          </div>
+
+          <button type="submit" class="btn-primary">Add Transaction</button>
+        </form>
+      </section>
+
+      <section id="custom-category" aria-label="Add Custom Category">
+        <!-- Custom Category: create user-defined spending categories -->
+      </section>
+
+      <section id="sort-controls" aria-label="Sort Transactions">
+        <!-- Sort Controls: sort the transaction list by amount or category -->
+      </section>
+
+      <section id="transaction-list" aria-label="Transaction List">
+        <!-- Transaction List: all recorded transactions -->
+      </section>
+    </main>
+
+    <script src="js/app.js" defer></script>
+  </body>
+</html>
