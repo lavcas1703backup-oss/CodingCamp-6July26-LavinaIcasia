@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "Live Preview",
+			"workspacePath": "c:\\Users\\lavca\\OneDrive\\Attachments\\Learning_Javascript\\RevoU _Day4\\RevoU_CodingCamp_Day4",
+			"problemMatcher": [
+				"$eslint-compact"
+			],
+			"label": "Live Preview: Run Server"
+		}
+	]
+}

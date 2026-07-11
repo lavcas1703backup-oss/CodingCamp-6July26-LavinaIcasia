@@ -892,17 +892,28 @@
   }
 
   /**
-   * Clear and re-render the spending bar chart inside `#spending-chart`.
+   * Chart.js pie chart instance — kept so it can be destroyed before each
+   * re-render.  Null when no chart has been drawn yet.
+   * @type {import('chart.js').Chart|null}
+   */
+  var _chartInstance = null;
+
+  /**
+   * Clear and re-render the spending pie chart inside `#spending-chart` using
+   * Chart.js.
    *
-   * - If there are no expense transactions: hides the canvas and shows
-   *   `#chart-placeholder` (satisfies Requirement 4.3).
-   * - Otherwise: hides the placeholder, shows the canvas, clears it, and
-   *   draws a horizontal bar chart with labeled bars showing category name,
-   *   total amount ($X.XX), and percentage of total expenses
+   * - If there are no expense transactions: destroys any existing chart
+   *   instance, hides the canvas, and shows `#chart-placeholder`
+   *   (satisfies Requirement 4.3).
+   * - Otherwise: destroys any previous Chart.js instance, shows the canvas,
+   *   and creates a new pie chart.  Each slice is labelled with the category
+   *   name, its total ($X.XX), and its percentage of total expenses
    *   (satisfies Requirements 4.2, 4.4).
-   * - A legend below the chart repeats the same information in text form.
-   * - Re-draws from scratch on every call so the chart always reflects the
-   *   current AppState (satisfies Requirement 4.2).
+   * - Re-creates the chart on every call so updates after add/delete are
+   *   always current (satisfies Requirement 4.2).
+   *
+   * Requires Chart.js to be available as the global `Chart` (loaded via CDN
+   * before this script runs).
    */
   function renderChart() {
     var canvas      = document.getElementById('spending-chart');
@@ -915,90 +926,87 @@
 
     // --- No expense data: show placeholder, hide canvas ---
     if (totals.size === 0) {
-      canvas.style.display   = 'none';
+      if (_chartInstance) {
+        _chartInstance.destroy();
+        _chartInstance = null;
+      }
+      canvas.style.display      = 'none';
       placeholder.style.display = '';
       if (legend) legend.innerHTML = '';
       return;
     }
 
-    // --- Has data: show canvas, hide placeholder ---
+    // --- Has data: hide placeholder, show canvas ---
     placeholder.style.display = 'none';
     canvas.style.display      = '';
 
-    // Compute total for percentage calculations.
+    // Compute total for percentage labels.
     var grandTotal = 0;
     totals.forEach(function (amount) { grandTotal += amount; });
 
-    // Sort categories by spend descending for a nicer chart layout.
-    var entries = [];
+    var labels  = [];
+    var amounts = [];
+    var colors  = [];
+
     totals.forEach(function (amount, category) {
-      entries.push({ category: category, amount: amount });
+      labels.push(category);
+      amounts.push(amount);
+      colors.push(getCategoryColor(category));
     });
-    entries.sort(function (a, b) { return b.amount - a.amount; });
 
-    // ---- Canvas sizing ----
-    var BAR_HEIGHT    = 36;   // px per bar
-    var BAR_GAP       = 14;   // px between bars
-    var PADDING_TOP   = 24;
-    var PADDING_BOTTOM = 16;
-    var PADDING_LEFT  = 160;  // space for category labels
-    var PADDING_RIGHT = 120;  // space for value labels
+    // Destroy previous Chart.js instance before creating a new one so we
+    // don't accumulate invisible canvases.
+    if (_chartInstance) {
+      _chartInstance.destroy();
+      _chartInstance = null;
+    }
 
-    var numBars   = entries.length;
-    var chartH    = PADDING_TOP + numBars * BAR_HEIGHT + (numBars - 1) * BAR_GAP + PADDING_BOTTOM;
-    var chartW    = canvas.parentElement ? canvas.parentElement.clientWidth || 600 : 600;
-    if (chartW < 300) chartW = 300;
-
-    canvas.width  = chartW;
-    canvas.height = chartH;
+    // Only attempt to create the chart when Chart.js is available (guard for
+    // test environments where Chart is not loaded).
+    if (typeof Chart === 'undefined') return;
 
     var ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, chartW, chartH);
 
-    // Drawable width for bars.
-    var drawW = chartW - PADDING_LEFT - PADDING_RIGHT;
-    var maxAmount = entries[0].amount; // already sorted descending
-
-    entries.forEach(function (entry, i) {
-      var y        = PADDING_TOP + i * (BAR_HEIGHT + BAR_GAP);
-      var barW     = drawW * (entry.amount / maxAmount);
-      var pct      = (entry.amount / grandTotal * 100).toFixed(1);
-      var color    = getCategoryColor(entry.category);
-
-      // --- Category label (left side) ---
-      ctx.fillStyle = getComputedStyle(document.documentElement)
-        .getPropertyValue('--color-text') || '#1a1a1a';
-      ctx.font      = '13px system-ui, sans-serif';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(entry.category, PADDING_LEFT - 10, y + BAR_HEIGHT / 2);
-
-      // --- Bar ---
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      if (ctx.roundRect) {
-        ctx.roundRect(PADDING_LEFT, y, barW, BAR_HEIGHT, 4);
-      } else {
-        ctx.rect(PADDING_LEFT, y, barW, BAR_HEIGHT);
-      }
-      ctx.fill();
-
-      // --- Value label (right of bar): $X.XX · XX.X% ---
-      ctx.fillStyle = getComputedStyle(document.documentElement)
-        .getPropertyValue('--color-text') || '#1a1a1a';
-      ctx.textAlign    = 'left';
-      ctx.textBaseline = 'middle';
-      var label = '$' + entry.amount.toFixed(2) + ' · ' + pct + '%';
-      ctx.fillText(label, PADDING_LEFT + barW + 8, y + BAR_HEIGHT / 2);
+    _chartInstance = new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: amounts,
+          backgroundColor: colors,
+          borderWidth: 2,
+          borderColor: '#ffffff',
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: {
+            display: false, // We render our own accessible legend below
+          },
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                var idx    = context.dataIndex;
+                var amount = amounts[idx];
+                var pct    = (amount / grandTotal * 100).toFixed(1);
+                return labels[idx] + ': $' + amount.toFixed(2) + ' (' + pct + '%)';
+              },
+            },
+          },
+        },
+      },
     });
 
-    // ---- Legend ----
+    // ---- Accessible legend below the chart ----
     if (!legend) return;
     legend.innerHTML = '';
 
-    entries.forEach(function (entry) {
-      var pct   = (entry.amount / grandTotal * 100).toFixed(1);
-      var color = getCategoryColor(entry.category);
+    labels.forEach(function (category, idx) {
+      var amount = amounts[idx];
+      var pct    = (amount / grandTotal * 100).toFixed(1);
+      var color  = colors[idx];
 
       var item = document.createElement('div');
       item.className = 'chart-legend__item';
@@ -1010,7 +1018,7 @@
 
       var text = document.createElement('span');
       text.className = 'chart-legend__text';
-      text.textContent = entry.category + ': $' + entry.amount.toFixed(2) + ' (' + pct + '%)';
+      text.textContent = category + ': $' + amount.toFixed(2) + ' (' + pct + '%)';
 
       item.appendChild(swatch);
       item.appendChild(text);
